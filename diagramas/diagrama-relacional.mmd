@@ -1,0 +1,13 @@
+erDiagram
+    TIPO {
+        int id PK
+        string tipo "Día laboral / Fin de semana / Día festivo"
+    }
+    CALENDARIO {
+        int id PK
+        date fecha "Única por día"
+        int idtipo FK
+        string descripcion
+    }
+
+    TIPO ||--o{ CALENDARIO : "clasifica"

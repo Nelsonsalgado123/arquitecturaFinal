@@ -1,0 +1,93 @@
+services:
+  dockerbdfestivos:
+    build:
+      context: ./BD/bd-mongo-festivos
+    container_name: dockerbdfestivos
+    restart: unless-stopped
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo_festivos_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - redcalendario
+
+  dockerapifestivos:
+    build:
+      context: ./apiFestivos
+    container_name: dockerapifestivos
+    restart: unless-stopped
+    ports:
+      - "3030:3030"
+    environment:
+      PORT: 3030
+      DB_HOST: dockerbdfestivos
+      DB_PORT: 27017
+      DB_NAME: festivos_db
+    depends_on:
+      dockerbdfestivos:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3030/api/festivos/obtener/2026').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - redcalendario
+
+  dockerbdcalendario:
+    build:
+      context: ./BD/bd-postgres-calendario
+    container_name: dockerbdcalendario
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_PASSWORD: sa
+    volumes:
+      - postgres_calendario_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d calendario" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks:
+      - redcalendario
+
+  dockerapicalendario:
+    build:
+      context: ./apiMonedas
+    container_name: dockerapicalendario
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: calendario
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dockerbdcalendario:5432/calendario
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: sa
+      SERVICIO_FESTIVOS_URL: http://dockerapifestivos:3030/api/festivos
+    depends_on:
+      dockerbdcalendario:
+        condition: service_healthy
+      dockerapifestivos:
+        condition: service_healthy
+    networks:
+      - redcalendario
+
+networks:
+  redcalendario:
+    name: redcalendario
+    driver: bridge
+
+volumes:
+  mongo_festivos_data:
+  postgres_calendario_data:

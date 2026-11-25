@@ -1,0 +1,27 @@
+const express = require('express');
+const cors = require('cors');
+const connectDB = require('./config/db');
+const festivoRoutes = require('./routes/festivo.routes');
+const configurarSwagger = require('./config/swagger');
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Conexión a Base de Datos
+connectDB();
+
+// Documentación Swagger
+configurarSwagger(app);
+
+// Rutas
+app.use(express.static('public')); // Servir la UI
+app.use('/api/festivos', festivoRoutes);
+
+// Iniciar Servidor
+const PORT = process.env.PORT || 3030;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
